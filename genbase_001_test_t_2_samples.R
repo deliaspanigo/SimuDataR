@@ -3,7 +3,7 @@
 # Libreries
 library("openxlsx")
 
-gen_special_standard_001 <- function(selected_n){
+gen_special_standard_001_A <- function(selected_n){
 
   # N final
   n_final <- selected_n
@@ -13,6 +13,9 @@ gen_special_standard_001 <- function(selected_n){
   media_sub <- 0  # Media de la distribución
   desvio_sub <- 1  # Desviación estándar de la distribución
   datos_sub <- rnorm(n_sub, mean = media_sub, sd = desvio_sub)
+  datos_sub[datos_sub >  3] <-  3
+  datos_sub[datos_sub < -3] <- -3
+
   datos_sub <- datos_sub - mean(datos_sub)
 
 
@@ -97,18 +100,115 @@ gen_special_standard_001 <- function(selected_n){
 }
 
 
+gen_special_standard_001_B <- function(selected_n){
 
-genbase_001_A <- function(vector_n, vector_mean, vector_sd, n_dec = 2){
+  # N final
+  n_final <- selected_n
+
+  # Muestreo sub
+  n_sub <- n_final - 1
+  media_sub <- 0  # Media de la distribución
+  desvio_sub <- 1  # Desviación estándar de la distribución
+  datos_sub <- rnorm(n_sub, mean = media_sub, sd = desvio_sub)
+  datos_sub[datos_sub >  3] <-  3
+  datos_sub[datos_sub < -3] <- -3
+
+  datos_sub <- datos_sub - mean(datos_sub)
+
+
+
+  c_part01 <- n_final
+  c_part02 <- (n_final*(n_final-2))/(n_final-1)*var(datos_sub)
+  c_total <- -c_part01 + c_part02
+
+  b_total <-  0
+
+  a_total <- 1
+
+
+  # Función para resolver una ecuación cuadrática
+  resolver_parabola <- function(a, b, c) {
+    # Calcular el discriminante
+    discriminante <- b^2 - 4*a*c
+
+    # Calcular las soluciones dependiendo del discriminante
+    if (discriminante > 0) {
+      x1 <- (-b + sqrt(discriminante)) / (2*a)
+      x2 <- (-b - sqrt(discriminante)) / (2*a)
+      #cat("Las soluciones son x1 =", x1, "y x2 =", x2, "\n")
+    } else if (discriminante == 0) {
+      x <- -b / (2*a)
+      #cat("Hay una solución doble: x =", x, "\n")
+    } else {
+      parte_real <- -b / (2*a)
+      parte_imaginaria <- sqrt(abs(discriminante)) / (2*a)
+      #cat("Las soluciones son complejas: x1 =", parte_real, "+", parte_imaginaria, "i y x2 =", parte_real, "-", parte_imaginaria, "i\n")
+    }
+    return(c(x1, x2))
+  }
+
+  # Ejemplo de uso
+  a <- a_total
+  b <- b_total
+  c <- c_total
+
+  discriminante <- -4*a*c
+  check_soluciones_reales <-  discriminante >= 0
+
+  #print(paste0("a: ", a))
+  #print(paste0("b: ", b))
+  #print(paste0("c: ", c))
+  cat(paste0("soluciones reales: ", check_soluciones_reales))
+  cat("\n")
+
+  if(!check_soluciones_reales) {
+    cat("Soluciones no reales!\n")
+    cat("Intenta de nuevo!\n")
+    return(NULL)
+
+  }
+
+  vector_soluciones <- resolver_parabola(a, b, c)
+
+  vector_new_01 <- c(datos_sub, vector_soluciones[1])
+  vector_new_01 <- vector_new_01 - mean(vector_new_01)
+  var_01 <- var(vector_new_01)
+  range_01 <- max(vector_new_01) - min(vector_new_01)
+
+  vector_new_02 <- c(datos_sub, vector_soluciones[2])
+  vector_new_02 <- vector_new_02 - mean(vector_new_02)
+  var_02 <- var(vector_new_02)
+  range_02 <- max(vector_new_02) - min(vector_new_02)
+
+  vector_var <- c(var_01, var_02)
+  print(vector_var)
+  check_ok <- sum(unique(as.character(vector_var)) == "1") == 1
+  print(check_ok)
+  print("")
+  selected_pos <- c()
+  if(range_01 <= range_02) selected_pos <- 1 else selected_pos <- 2
+  if(selected_pos == 1) vector_mod <- vector_new_01 else vector_mod <- vector_new_02
+
+  return(vector_mod)
+  #print(var(vector_mod))
+}
+
+
+genbase_001_A <- function(vector_n, vector_mean_VR_factor, vector_sd_ERROR_factor, n_dec = 2){
 
 
   vector_orden_levels <- 1:length(vector_n)
-  vector_ref_levels <- LETTERS[vector_orden_levels]
+  vector_ref_levels   <- LETTERS[vector_orden_levels]
 
   list_data <- sapply(vector_orden_levels, function(x){
-    simu_g <- rnorm(n = vector_n[x], mean = vector_mean[x], sd = vector_sd[x])
+    simu_g <- rnorm(n = vector_n[x],
+                    mean = 0,
+                    sd = 1)
     simu_g <- round(simu_g, n_dec)
+    simu_g[simu_g >  3] <-  3
+    simu_g[simu_g < -3] <- -3
     simu_g <- simu_g - mean(simu_g)
-    simu_g <- simu_g + vector_mean[x]
+    simu_g <- simu_g*vector_sd_ERROR_factor[x] + vector_mean_VR_factor[x]
     simu_g
   }, simplify = F)
 
@@ -126,7 +226,7 @@ genbase_001_A <- function(vector_n, vector_mean, vector_sd, n_dec = 2){
 }
 
 
-genbase_001_B <- function(vector_n, vector_mean, vector_sd, n_dec = 2){
+genbase_001_B <- function(vector_n, vector_mean_VR_factor, vector_sd_ERROR_factor, n_dec = 2){
 
 
   vector_orden_levels <- 1:length(vector_n)
@@ -136,12 +236,12 @@ genbase_001_B <- function(vector_n, vector_mean, vector_sd, n_dec = 2){
 
     super_ok <- FALSE
     while(!super_ok){
-      simu_g <- gen_special_standard_001(selected_n = vector_n[x])
+      simu_g <- gen_special_standard_001_B(selected_n = vector_n[x])
 
 
       if (length(simu_g) == vector_n[x]) {
         simu_g <- round(simu_g, n_dec)
-        simu_g <- simu_g*vector_sd[x] + vector_mean[x]
+        simu_g <- simu_g*vector_sd_ERROR_factor[x] + vector_mean_VR_factor[x]
         super_ok <- TRUE
       }
     }
@@ -160,6 +260,7 @@ genbase_001_B <- function(vector_n, vector_mean, vector_sd, n_dec = 2){
   return(df_simu)
 
 }
+
 
 
 control_001 <- function(df_simu, alpha_value = 0.05){
@@ -240,12 +341,12 @@ general_vision_001 <- function(df_control){
   output_list
 }
 
-gen_and_save_001 <- function(vector_n, vector_mean, vector_sd, the_way = 1){
+gen_and_save_001 <- function(vector_n, vector_mean_VR_factor, vector_sd_ERROR_factor, n_dec = 2, the_way = 1){
 
 
   # Base simulada
-  if(the_way == 1) df_simu <- genbase_001_A(vector_n, vector_mean, vector_sd)
-  if(the_way == 2) df_simu <- genbase_001_B(vector_n, vector_mean, vector_sd)
+  if(the_way == 1) df_simu <- genbase_001_A(vector_n, vector_mean_VR_factor, vector_sd_ERROR_factor, n_dec)
+  if(the_way == 2) df_simu <- genbase_001_B(vector_n, vector_mean_VR_factor, vector_sd_ERROR_factor, n_dec)
 
   # DF del control
   df_control <- control_001(df_simu, alpha_value)
@@ -283,12 +384,13 @@ gen_and_save_001 <- function(vector_n, vector_mean, vector_sd, the_way = 1){
 # Generador!
 
 # Inputs
-vector_n        <- c(10, 10)
-vector_mean     <- c(20, 30)
-vector_sd       <- c(2, 3)
-alpha_value     <- 0.05
+vector_n             <- c(10, 10)
+vector_mean_VR_factor   <- c(20, 30)
+vector_sd_ERROR_factor      <- c(2, 3)
+alpha_value          <- 0.05
+n_dec <- 4
 
-gen_and_save_001(vector_n, vector_mean, vector_sd, the_way = 2)
+gen_and_save_001(vector_n, vector_mean_VR_factor, vector_sd_ERROR_factor, n_dec,  the_way = 2)
 
 
 
